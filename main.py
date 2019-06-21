@@ -46,6 +46,8 @@ if __name__ == "__main__":
 	parser.add_argument("--policy_noise", default=0.2, type=float)		# Noise added to target policy during critic update
 	parser.add_argument("--noise_clip", default=0.5, type=float)		# Range to clip target policy noise
 	parser.add_argument("--policy_freq", default=2, type=int)			# Frequency of delayed policy updates
+	parser.add_argument("--actor_lr", default=1e-3, type=float)
+	parser.add_argument("--is_ro", action="store_true", default=False)  # Whether or not models are saved
 	args = parser.parse_args()
 
 	file_name = "%s_%s_%s" % (args.policy_name, args.env_name, str(args.seed))
@@ -71,8 +73,11 @@ if __name__ == "__main__":
 
 	# Initialize policy
 	if args.policy_name == "TD3": policy = TD3.TD3(state_dim, action_dim, max_action)
-	elif args.policy_name == "OurDDPG": policy = OurDDPG.DDPG(state_dim, action_dim, max_action)
+	elif args.policy_name == "OurDDPG": policy = \
+		OurDDPG.DDPG(state_dim, action_dim, max_action, actor_lr=args.actor_lr, is_ro=args.is_ro)
 	elif args.policy_name == "DDPG": policy = DDPG.DDPG(state_dim, action_dim, max_action)
+
+	# policy.load("good_start_from_ddpg", "models")
 
 	replay_buffer = utils.ReplayBuffer()
 	

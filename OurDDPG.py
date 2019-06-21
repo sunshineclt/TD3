@@ -46,16 +46,18 @@ class Critic(nn.Module):
 
 
 class DDPG(object):
-	def __init__(self, state_dim, action_dim, max_action):
+	def __init__(self, state_dim, action_dim, max_action, actor_lr, is_ro):
 		self.actor = Actor(state_dim, action_dim, max_action).to(device)
 		self.actor_target = Actor(state_dim, action_dim, max_action).to(device)
 		self.actor_target.load_state_dict(self.actor.state_dict())
-		self.actor_optimizer = torch.optim.Adam(self.actor.parameters())
+		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
 
 		self.critic = Critic(state_dim, action_dim).to(device)
 		self.critic_target = Critic(state_dim, action_dim).to(device)
 		self.critic_target.load_state_dict(self.critic.state_dict())
-		self.critic_optimizer = torch.optim.Adam(self.critic.parameters())		
+		self.critic_optimizer = torch.optim.Adam(self.critic.parameters())
+
+		self.is_ro = is_ro
 
 
 	def select_action(self, state):
@@ -91,11 +93,40 @@ class DDPG(object):
 			self.critic_optimizer.step()
 
 			# Compute actor loss
-			actor_loss = -self.critic(state, self.actor(state)).mean()
-			
+			if self.is_ro:
+				actions = self.actor(state)
+				repeat_number = 128
+				# augmented_actions_raw = actions.repeat(1, repeat_number).reshape([batch_size * repeat_number, -1])
+				augmented_states = state.repeat(1, repeat_number).reshape([batch_size * repeat_number, -1])
+
+				noises = []
+				for batch_i in range(batch_size):
+					mins = torch.max(actions[batch_i] - 0.1, (-torch.ones([actions.shape[1]])).cuda())
+					maxs = torch.min(actions[batch_i] + 0.1, torch.ones([actions.shape[1]]).cuda())
+					noises.append(torch.rand(repeat_number - 1, actions.shape[1]).cuda() * (maxs - mins) + mins)
+					noises.append(actions[batch_i:batch_i + 1])
+				noises = torch.cat(noises, 0).cuda()
+				augmented_actions = noises
+				# augmented_actions = torch.clamp(augmented_actions, -1, 1)
+
+				q_value = self.critic(augmented_states, augmented_actions)[:, 0]
+				split_q_value = torch.split(q_value, repeat_number, dim=0)
+				split_action = torch.split(augmented_actions, repeat_number, dim=0)
+
+				actor_loss_ro = 0
+				for batch_i in range(batch_size):
+					max_index = torch.argmax(split_q_value[batch_i])
+					target_action = split_action[batch_i][max_index, :].detach()
+					actor_loss_ro = actor_loss_ro + F.mse_loss(actions[batch_i, :], target_action)
+			else:
+				actor_loss_dpg = -self.critic(state, self.actor(state)).mean()
+
 			# Optimize the actor 
 			self.actor_optimizer.zero_grad()
-			actor_loss.backward()
+			if self.is_ro:
+				actor_loss_ro.backward()
+			else:
+				actor_loss_dpg.backward()
 			self.actor_optimizer.step()
 
 			# Update the frozen target models
