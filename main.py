@@ -50,7 +50,7 @@ if __name__ == "__main__":
 	parser.add_argument("--is_ro", action="store_true", default=False)  # Whether or not models are saved
 	args = parser.parse_args()
 
-	file_name = "%s_%s_%s" % (args.policy_name, args.env_name, str(args.seed))
+	file_name = "%s_%s_%s_%s" % (args.policy_name, args.env_name, str(args.is_ro), str(args.seed))
 	print "---------------------------------------"
 	print "Settings: %s" % (file_name)
 	print "---------------------------------------"
