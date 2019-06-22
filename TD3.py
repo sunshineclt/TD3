@@ -132,11 +132,11 @@ class TD3(object):
 
 					noises = []
 					for batch_i in range(batch_size):
-						mins = torch.max(actions[batch_i] - 0.1, (-torch.ones([actions.shape[1]])).cuda())
-						maxs = torch.min(actions[batch_i] + 0.1, torch.ones([actions.shape[1]]).cuda())
-						noises.append(torch.rand(repeat_number - 1, actions.shape[1]).cuda() * (maxs - mins) + mins)
+						mins = torch.max(actions[batch_i] - 0.1, (-torch.ones([actions.shape[1]], device=torch.device('cuda'))))
+						maxs = torch.min(actions[batch_i] + 0.1, torch.ones([actions.shape[1]], device=torch.device('cuda')))
+						noises.append(torch.rand(repeat_number - 1, actions.shape[1], device=torch.device('cuda')) * (maxs - mins) + mins)
 						noises.append(actions[batch_i:batch_i + 1])
-					noises = torch.cat(noises, 0).cuda()
+					noises = torch.cat(noises, 0)
 					augmented_actions = noises
 					# augmented_actions = torch.clamp(augmented_actions, -1, 1)
 
