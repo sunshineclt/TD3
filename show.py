@@ -69,6 +69,6 @@ if __name__ == "__main__":
     elif args.policy_name == "DDPG":
         policy = DDPG.DDPG(state_dim, action_dim, max_action)
 
-    policy.load("TD3_Ant-v1_0", "pytorch_models")
+    policy.load("%s_%s_%s.pth" % (args.policy_name, args.env_name, str(args.seed)), "pytorch_models")
 
     evaluate_policy(policy, args.eval_episodes)
