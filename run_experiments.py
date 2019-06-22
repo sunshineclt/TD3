@@ -24,8 +24,8 @@ pool = mp.Pool(processes=25)
 
 conditions = []
 for algorithm in ["TD3"]:
-    for seed in range(10):
-        for actor_lr in [1e-3]:
+    for seed in range(5):
+        for actor_lr in [1e-3, 3e-4, 1e-4]:
             conditions.append((algorithm, seed, actor_lr))
 
 pool.map(task, conditions)
