@@ -3,6 +3,7 @@ import torch
 import gym
 import argparse
 import os
+import pickle
 
 import utils
 import TD3
@@ -48,6 +49,7 @@ if __name__ == "__main__":
 	parser.add_argument("--policy_freq", default=2, type=int)			# Frequency of delayed policy updates
 	parser.add_argument("--actor_lr", default=1e-3, type=float)
 	parser.add_argument("--is_ro", action="store_true", default=False)  # Whether or not models are saved
+	parser.add_argument("--is_collect_data", action="store_true", default=False)  # Whether or not models are saved
 	args = parser.parse_args()
 
 	file_name = "%s_%s_%s_%s" % (args.policy_name, args.env_name, str(args.is_ro), str(args.seed))
@@ -89,6 +91,7 @@ if __name__ == "__main__":
 	timesteps_since_eval = 0
 	episode_num = 0
 	done = True
+	collected_datas = []
 
 	while total_timesteps < args.max_timesteps:
 
@@ -97,9 +100,17 @@ if __name__ == "__main__":
 			if total_timesteps != 0:
 				print("Total T: %d Episode Num: %d Episode T: %d Reward: %f") % (total_timesteps, episode_num, episode_timesteps, episode_reward)
 				if args.policy_name == "TD3":
-					policy.train(replay_buffer, episode_timesteps, args.batch_size, args.discount, args.tau, args.policy_noise, args.noise_clip, args.policy_freq)
+					collected_data = policy.train(replay_buffer, episode_timesteps, args.batch_size, args.discount,
+												  args.tau, args.policy_noise, args.noise_clip, args.policy_freq,
+												  args.is_collect_data)
+					if args.is_collect_data:
+						collected_datas.extend(collected_data)
 				else:
 					policy.train(replay_buffer, episode_timesteps, args.batch_size, args.discount, args.tau)
+
+			if episode_num % 100 == 0:
+				with open("results/collected_data_" + file_name + ".pkl", "wb") as f:
+					pickle.dump(collected_datas, f)
 
 			# Evaluate episode
 			if timesteps_since_eval >= args.eval_freq:
@@ -142,3 +153,5 @@ if __name__ == "__main__":
 	evaluations.append(evaluate_policy(policy))
 	if args.save_models: policy.save("%s" % (file_name), directory="./pytorch_models")
 	np.save("./results/%s" % (file_name), evaluations)
+	with open("results/collected_data.pkl", "wb") as f:
+		pickle.dump(collected_datas, f)

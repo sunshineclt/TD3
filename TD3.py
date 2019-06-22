@@ -87,8 +87,9 @@ class TD3(object):
 		return self.actor(state).cpu().data.numpy().flatten()
 
 
-	def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005, policy_noise=0.2, noise_clip=0.5, policy_freq=2):
+	def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005, policy_noise=0.2, noise_clip=0.5, policy_freq=2, is_collecting_data=False):
 
+		collected_data = []
 		for it in range(iterations):
 
 			# Sample replay buffer 
@@ -149,6 +150,10 @@ class TD3(object):
 						max_index = torch.argmax(split_q_value[batch_i])
 						target_action = split_action[batch_i][max_index, :].detach()
 						actor_loss_ro = actor_loss_ro + F.mse_loss(actions[batch_i, :], target_action)
+						if is_collecting_data and it == iterations - 1:
+							collected_data.append((state[batch_i, :].detach().cpu().numpy(),
+												   actions[batch_i, :].detach().cpu().numpy(),
+												   target_action.detach().cpu().numpy()))
 				else:
 					actor_loss_dpg = -self.critic.Q1(state, self.actor(state)).mean()
 
@@ -166,7 +171,7 @@ class TD3(object):
 
 				for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
 					target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
-
+		return collected_data
 
 	def save(self, filename, directory):
 		torch.save(self.actor.state_dict(), '%s/%s_actor.pth' % (directory, filename))
