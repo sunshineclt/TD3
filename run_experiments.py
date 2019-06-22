@@ -20,7 +20,7 @@ def task(condition):
     os.system(command)
 
 
-pool = mp.Pool(processes=25)
+pool = mp.Pool(processes=5)
 
 conditions = []
 for algorithm in ["TD3"]:
