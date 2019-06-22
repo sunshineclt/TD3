@@ -15,8 +15,8 @@ def task(condition):
     command += "--seed=" + str(seed) + " "
     command += "--start_timesteps=" + str(start_timesteps) + " "
     command += "--actor_lr=" + str(actor_lr) + " "
-    command += "--save_models"
-    command += "--is_ro"
+    command += "--save_models "
+    command += "--is_ro "
     os.system(command)
 
 
