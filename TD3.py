@@ -142,18 +142,23 @@ class TD3(object):
 					# augmented_actions = torch.clamp(augmented_actions, -1, 1)
 
 					q_value = self.critic.Q1(augmented_states, augmented_actions)[:, 0]
-					split_q_value = torch.split(q_value, repeat_number, dim=0)
-					split_action = torch.split(augmented_actions, repeat_number, dim=0)
+					q_value_reshaped = torch.reshape(q_value, [batch_size, repeat_number])
+					max_q_value, argmax_q_value = torch.max(q_value_reshaped, dim=1)
+					median_max_q_value = torch.median(max_q_value)
+					action_reshaped = torch.reshape(augmented_actions, [batch_size, repeat_number, actions.shape[1]]).detach()
+					# split_q_value = torch.split(q_value, repeat_number, dim=0)
+					# split_action = torch.split(augmented_actions, repeat_number, dim=0)
 
 					actor_loss_ro = 0
 					for batch_i in range(batch_size):
-						max_index = torch.argmax(split_q_value[batch_i])
-						target_action = split_action[batch_i][max_index, :].detach()
-						actor_loss_ro = actor_loss_ro + F.mse_loss(actions[batch_i, :], target_action)
-						if is_collecting_data and it == iterations - 1:
-							collected_data.append((state[batch_i, :].detach().cpu().numpy(),
-												   actions[batch_i, :].detach().cpu().numpy(),
-												   target_action.detach().cpu().numpy()))
+						if max_q_value[batch_i] > median_max_q_value:
+							max_index = argmax_q_value[batch_i]
+							target_action = action_reshaped[batch_i, max_index, :]
+							actor_loss_ro = actor_loss_ro + F.mse_loss(actions[batch_i, :], target_action)
+							if is_collecting_data and it == iterations - 1:
+								collected_data.append((state[batch_i, :].detach().cpu().numpy(),
+													   actions[batch_i, :].detach().cpu().numpy(),
+													   target_action.detach().cpu().numpy()))
 				else:
 					actor_loss_dpg = -self.critic.Q1(state, self.actor(state)).mean()
 
